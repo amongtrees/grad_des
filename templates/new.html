@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Sniffer Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --sidebar-width: 250px;
+            --sidebar-bg: #343a40;
+            --sidebar-color: #adb5bd;
+            --sidebar-active-color: #ffffff;
+            --sidebar-active-bg: #495057;
+            --content-bg: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        #sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            background: var(--sidebar-bg);
+            color: var(--sidebar-color);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        #sidebar .sidebar-header {
+            padding: 20px;
+            background: var(--sidebar-bg);
+        }
+
+        #sidebar ul.components {
+            padding: 20px 0;
+        }
+
+        #sidebar ul li a {
+            padding: 15px 20px;
+            font-size: 1.1em;
+            display: block;
+            color: var(--sidebar-color);
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        #sidebar ul li a:hover {
+            color: var(--sidebar-active-color);
+            background: var(--sidebar-active-bg);
+        }
+
+        #sidebar ul li.active > a {
+            color: var(--sidebar-active-color);
+            background: var(--sidebar-active-bg);
+        }
+
+        #content {
+            width: calc(100% - var(--sidebar-width));
+            min-height: 100vh;
+            margin-left: var(--sidebar-width);
+            background: var(--content-bg);
+            transition: all 0.3s;
+            padding: 20px;
+        }
+
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            border: none;
+        }
+
+        .card-header {
+            background-color: #fff;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+            font-weight: 600;
+        }
+
+        .module {
+            display: none;
+        }
+
+        .module.active {
+            display: block;
+        }
+
+        .stats-card {
+            text-align: center;
+            padding: 20px;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .stats-card i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: #0d6efd;
+        }
+
+        .stats-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+
+        .stats-card p {
+            color: #6c757d;
+            margin-bottom: 0;
+        }
+
+        .table-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .file-upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-upload-area:hover {
+            border-color: #0d6efd;
+            background-color: rgba(13, 110, 253, 0.05);
+        }
+
+        .file-upload-area i {
+            font-size: 3rem;
+            color: #6c757d;
+            margin-bottom: 15px;
+        }
+
+        .file-upload-area p {
+            margin-bottom: 0;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边导航栏 -->
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <h3>Network Sniffer</h3>
+        </div>
+
+        <ul class="nav flex-column">
+            <li class="nav-item active">
+                <a href="#" class="nav-link" data-module="live-analysis">
+                    <i class="bi bi-speedometer2 me-2"></i>实时流量分析
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link" data-module="file-analysis">
+                    <i class="bi bi-file-earmark-arrow-up me-2"></i>离线文件分析
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- 主内容区 -->
+    <div id="content">
+        <!-- 实时流量分析模块 -->
+        <div id="live-analysis" class="module active">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">实时流量分析</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <button id="start-sniffer" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-play-fill"></i> 开始捕获
+                        </button>
+                        <button id="stop-sniffer" class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-stop-fill"></i> 停止捕获
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="stats-card">
+                        <i class="bi bi-globe"></i>
+                        <h3 id="total-flows">0</h3>
+                        <p>总网络流数</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stats-card">
+                        <i class="bi bi-shield-check"></i>
+                        <h3 id="doh-flows">0</h3>
+                        <p>DoH流数</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stats-card">
+                        <i class="bi bi-shield-exclamation"></i>
+                        <h3 id="malicious-flows">0</h3>
+                        <p>恶意流数</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>捕获设置</span>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="interface-select" class="form-label">选择网卡</label>
+                                <select id="interface-select" class="form-select">
+                                    <option value="" selected>请选择网卡...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">输出模式</label>
+                                <div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="output_mode" id="flow-mode" value="flow" checked>
+                                        <label class="form-check-label" for="flow-mode">Flow</label>
+                                    </div>
+{#                                    <div class="form-check form-check-inline">#}
+{#                                        <input class="form-check-input" type="radio" name="output_mode" id="sequence-mode" value="sequence">#}
+{#                                        <label class="form-check-label" for="sequence-mode">Sequence</label>#}
+{#                                    </div>#}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <span>捕获的流量</span>
+                </div>
+                <div class="card-body table-container">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>源IP</th>
+                                <th>目标IP</th>
+                                <th>源端口</th>
+                                <th>目标端口</th>
+                                <th>时间戳</th>
+                                <th>DoH</th>
+                                <th>良性</th>
+                            </tr>
+                        </thead>
+                        <tbody id="info-body">
+                            <!-- 流量数据将在这里动态插入 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 离线文件分析模块 -->
+        <div id="file-analysis" class="module">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">离线文件分析</h1>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <span>上传PCAP或PCAPNG文件</span>
+                        </div>
+                        <div class="card-body">
+                            <div id="file-upload-area" class="file-upload-area">
+                                <i class="bi bi-cloud-arrow-up"></i>
+                                <p>点击或拖拽文件到此处上传</p>
+                                <input type="file" id="file-input" class="d-none" accept=".pcap,.pcapng">
+                            </div>
+                            <div class="mt-3">
+                                <button id="analyze-file" class="btn btn-primary" disabled>
+                                    <i class="bi bi-gear"></i> 分析文件
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <span>分析结果</span>
+                        </div>
+                        <div class="card-body">
+                            <div id="file-analysis-results" class="table-container">
+                                <p class="text-muted">上传并分析文件后，结果将显示在这里</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 原始WebSocket和接口加载逻辑保持不变
+        let socket;
+        let totalFlows = 0;
+        let maliciousFlows = 0;
+        let dohFlows = 0;
+        let offlineAnalysisResults = [];
+
+        function connectWebSocket(){
+            socket = new WebSocket('ws://127.0.0.1:8000/ws/sniffer/');
+            socket.onopen = function (event){
+                console.log('WebSocket connected');
+                console.log('WebSocket ready');
+                socket.send(JSON.stringify({'message': 'hi'}));
+                console.log('sent msg');
+            };
+            socket.onmessage = function (event){
+                console.log("Raw WebSocket message:", event.data);
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log("Received flow info:", data);
+                    const flow_info = data.flow_info;
+                    const mode = data.cur_mode;
+                    if (mode === 'online'){
+                        processRealtimeData(flow_info);
+                    }
+                    else if (mode === 'offline'){
+                        displayFileAnalysisResults(flow_info);
+                    }
+
+                } catch (error) {
+                    console.error("Error parsing message:", error);
+                }
+            };
+
+            socket.onclose = function (event){
+                console.log('WebSocket disconnected');
+            };
+        }
+
+        async function loadInterfaces() {
+            const response = await fetch('/get_interfaces/');
+            const data = await response.json();
+            console.log(data);
+            const interfaceSelect = document.getElementById('interface-select');
+
+            data.interfaces.forEach(iface => {
+                const option = document.createElement('option');
+                option.value = iface;
+                option.textContent = iface;
+                interfaceSelect.appendChild(option);
+            });
+        }
+
+        async function startSniffer() {
+            const interface = document.getElementById('interface-select').value;
+            const outputMode = document.querySelector('input[name="output_mode"]:checked').value;
+            const outputFile = 'output.csv';
+
+            if (!interface) {
+                alert('请选择网卡');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('input_interface', interface);
+            formData.append('output_mode', outputMode);
+            formData.append('output_file', outputFile);
+
+            const response = await fetch('/start_sniffer/', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+
+            // 使用Toast通知代替alert
+            showToast(result.message, result.success ? 'success' : 'danger');
+        }
+
+        async function stopSniffer() {
+            const response = await fetch('/stop_sniffer/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                }
+            });
+            const result = await response.json();
+            showToast(result.message, result.success ? 'success' : 'danger');
+        }
+
+        // 模块切换功能
+        document.querySelectorAll('[data-module]').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                // 更新导航栏活动状态
+                document.querySelectorAll('#sidebar .nav-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                this.parentElement.classList.add('active');
+
+                // 切换模块显示
+                const moduleId = this.getAttribute('data-module');
+                document.querySelectorAll('.module').forEach(module => {
+                    module.classList.remove('active');
+                });
+                document.getElementById(moduleId).classList.add('active');
+            });
+        });
+
+        // 文件上传区域交互
+        const fileUploadArea = document.getElementById('file-upload-area');
+        const fileInput = document.getElementById('file-input');
+        const analyzeBtn = document.getElementById('analyze-file');
+
+        fileUploadArea.addEventListener('click', () => fileInput.click());
+
+        fileUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadArea.style.borderColor = '#0d6efd';
+            fileUploadArea.style.backgroundColor = 'rgba(13, 110, 253, 0.1)';
+        });
+
+        fileUploadArea.addEventListener('dragleave', () => {
+            fileUploadArea.style.borderColor = '#dee2e6';
+            fileUploadArea.style.backgroundColor = '';
+        });
+
+        fileUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUploadArea.style.borderColor = '#dee2e6';
+            fileUploadArea.style.backgroundColor = '';
+
+            if(e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                updateFileUploadUI();
+            }
+        });
+
+        fileInput.addEventListener('change', updateFileUploadUI);
+
+        function updateFileUploadUI() {
+            if(fileInput.files.length) {
+                const file = fileInput.files[0];
+                fileUploadArea.innerHTML = `
+                    <i class="bi bi-file-earmark-check"></i>
+                    <p>${file.name}</p>
+                    <small class="text-muted">${(file.size / 1024 / 1024).toFixed(2)} MB</small>
+                `;
+                analyzeBtn.disabled = false;
+            }
+        }
+
+        analyzeBtn.addEventListener('click', async function() {
+            if(!fileInput.files.length) return;
+
+            const formData = new FormData();
+
+            formData.append('input_file', fileInput.files[0]);
+            formData.append('output_mode', 'flow');
+            formData.append('output_file', 'output.csv');
+            analyzeBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 分析中...';
+            analyzeBtn.disabled = true;
+
+            try {
+                const response = await fetch('/start_sniffer/', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if(result.success) {
+
+                    showToast('文件分析完成', 'success');
+                } else {
+                    throw new Error(result.message || '分析失败');
+                }
+            } catch (error) {
+                showToast(error.message, 'danger');
+            } finally {
+                analyzeBtn.innerHTML = '<i class="bi bi-gear"></i> 分析文件';
+                analyzeBtn.disabled = false;
+            }
+        });
+
+        function createTableRow(flow_info) {
+            const row = document.createElement('tr');
+
+            // 对于非DoH流量，良性列显示为"-"
+            const benignDisplay = flow_info.is_doh ?
+                (flow_info.is_benign ? '<span class="badge bg-success">Yes</span>' : '<span class="badge bg-danger">No</span>') :
+                '-';
+
+            row.innerHTML = `
+                <td>${flow_info.src_ip || 'N/A'}</td>
+                <td>${flow_info.dst_ip || 'N/A'}</td>
+                <td>${flow_info.src_port || 'N/A'}</td>
+                <td>${flow_info.dst_port || 'N/A'}</td>
+                <td>${flow_info.time_stamp || 'N/A'}</td>
+                <td>${flow_info.is_doh ? '<span class="badge bg-warning">Yes</span>' : '<span class="badge bg-secondary">No</span>'}</td>
+                <td>${benignDisplay}</td>
+            `;
+
+            return row;
+        }
+
+        function processRealtimeData(flow_info){
+            // 更新统计数据
+            totalFlows++;
+            document.getElementById('total-flows').textContent = totalFlows;
+
+            if(flow_info.is_doh) {
+                dohFlows++;
+                document.getElementById('doh-flows').textContent = dohFlows;
+
+                if(!flow_info.is_benign) {
+                    maliciousFlows++;
+                    document.getElementById('malicious-flows').textContent = maliciousFlows;
+                }
+            }
+            const tableBody = document.getElementById('info-body');
+            const row = createTableRow(flow_info);
+            tableBody.insertBefore(row, tableBody.firstChild);
+
+            if(tableBody.children.length > 100) {
+                tableBody.removeChild(tableBody.lastChild);
+            }
+        }
+
+        function displayFileAnalysisResults(data) {
+            const resultsContainer = document.getElementById('file-analysis-results');
+
+            if(!data) {
+                resultsContainer.innerHTML = '<p class="text-muted">没有找到流量数据</p>';
+                return;
+            }
+
+            // 检查是否已存在表格
+            let table = resultsContainer.querySelector('table');
+
+            if (!table) {
+                // 如果不存在表格，创建新表格
+                table = document.createElement('table');
+                table.className = 'table table-hover';
+
+                // 创建表头
+                const thead = document.createElement('thead');
+                thead.innerHTML = `
+                    <tr>
+                        <th>源IP</th>
+                        <th>目标IP</th>
+                        <th>源端口</th>
+                        <th>目标端口</th>
+                        <th>时间戳</th>
+                        <th>DoH</th>
+                        <th>良性</th>
+                    </tr>
+                `;
+                table.appendChild(thead);
+
+                // 创建tbody
+                const tbody = document.createElement('tbody');
+                table.appendChild(tbody);
+
+                resultsContainer.innerHTML = '';
+                resultsContainer.appendChild(table);
+            }
+
+            // 获取或创建tbody
+            const tbody = table.querySelector('tbody') || document.createElement('tbody');
+
+            const row = createTableRow(data);
+            tbody.appendChild(row);
+            // 确保tbody已附加到table
+            if (!table.contains(tbody)) {
+                table.appendChild(tbody);
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const toastContainer = document.createElement('div');
+            toastContainer.className = 'position-fixed bottom-0 end-0 p-3';
+            toastContainer.style.zIndex = '1100';
+
+            const toast = document.createElement('div');
+            toast.className = `toast show align-items-center text-white bg-${type} border-0`;
+            toast.role = 'alert';
+            toast.ariaLive = 'assertive';
+            toast.ariaAtomic = 'true';
+
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+
+            toastContainer.appendChild(toast);
+            document.body.appendChild(toastContainer);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(toastContainer);
+                }, 300);
+            }, 3000);
+        }
+
+        // 初始化
+        window.onload = function() {
+            loadInterfaces();
+            connectWebSocket();
+
+            // 绑定按钮事件
+            document.getElementById('start-sniffer').addEventListener('click', startSniffer);
+            document.getElementById('stop-sniffer').addEventListener('click', stopSniffer);
+        };
+    </script>
+</body>
+</html>

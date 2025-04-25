@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sniffer</title>
+    <script>
+        let socket;
+
+        function connectWebSocket(){
+            socket = new WebSocket('ws://127.0.0.1:8000/ws/sniffer/');
+            socket.onopen = function (event){
+                console.log('WebSocket connected');
+                console.log('WebSocket ready');
+                socket.send(JSON.stringify({'message': 'hi'}));
+                console.log('sent msg');
+            };
+            socket.onmessage = function (event){
+                console.log("Raw WebSocket message:", event.data);
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log("Received flow info:", data);
+                    const flow_info = data.flow_info;
+
+                    const tableBody = document.getElementById('info-body');
+                    const row = document.createElement('tr');
+
+                    // Create table cells with the respective flow info
+                    const src_ip = document.createElement('td');
+                    src_ip.textContent = flow_info.src_ip || 'N/A';
+                    row.appendChild(src_ip);
+
+                    const dst_ip = document.createElement('td');
+                    dst_ip.textContent = flow_info.dst_ip || 'N/A';
+                    row.appendChild(dst_ip);
+
+                    const src_port = document.createElement('td');
+                    src_port.textContent = flow_info.src_port || 'N/A';
+                    row.appendChild(src_port);
+
+                    const dst_port = document.createElement('td');
+                    dst_port.textContent = flow_info.dst_port || 'N/A';
+                    row.appendChild(dst_port);
+
+                    const time_stamp = document.createElement('td');
+                    time_stamp.textContent = flow_info.time_stamp || 'N/A';
+                    row.appendChild(time_stamp);
+
+                    const is_doh = document.createElement('td');
+                    is_doh.textContent = flow_info.is_doh ? 'Yes' : 'No';
+                    row.appendChild(is_doh);
+
+                    const is_benign = document.createElement('td');
+                    is_benign.textContent = flow_info.is_benign ? 'Yes' : 'No';
+                    row.appendChild(is_benign);
+
+                    // Append the new row to the table body
+                    tableBody.appendChild(row);
+                } catch (error) {
+                    console.error("Error parsing message:", error); // 如果 JSON 解析失败，捕获并打印
+                }
+            };
+
+            socket.onclose = function (event){
+                console.log('WebSocket disconnected');
+            };
+        };
+
+        async function loadInterfaces() {
+            const response = await fetch('/get_interfaces/');
+            const data = await response.json();
+            console.log(data);
+            const interfaceSelect = document.getElementById('interface-select');
+
+            data.interfaces.forEach(iface => {
+                const option = document.createElement('option');
+                option.value = iface;
+                option.textContent = iface;
+                interfaceSelect.appendChild(option);
+            });
+        }
+
+        async function startSniffer() {
+            const interface = document.getElementById('interface-select').value;
+            const outputMode = document.querySelector('input[name="output_mode"]:checked').value;
+            const outputFile = 'output.csv';
+            //if (!outputFile) {
+            //    alert('请选择输出文件路径');
+            //    return;
+            //}
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+            // 检查是否同时选择了网卡和上传了文件
+            if (interface && file) {
+                alert('错误：不能同时选择网卡和上传文件，请只选择其中一项。');
+                return;
+            }
+
+            // 检查是否既没有选择网卡也没有上传文件
+            if (!interface && !file) {
+                alert('错误：请选择网卡或上传文件。');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('input_interface', interface);
+            formData.append('output_mode', outputMode);
+            formData.append('output_file', outputFile);
+            if (file) {
+                formData.append('input_file', file);
+            }
+
+            {#console.log('Request Body:', body.toString());  // 打印请求体#}
+
+            const response = await fetch('/start_sniffer/', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            alert(result.message);
+        }
+
+        async function stopSniffer() {
+            const response = await fetch('/stop_sniffer/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                }
+            });
+            const result = await response.json();
+            alert(result.message);
+
+            // 显示捕获的数据
+
+        }
+
+        window.onload = function() {
+            loadInterfaces();
+            connectWebSocket();
+        };
+
+    </script>
+</head>
+<body>
+    <h1>Network Sniffer</h1>
+    <div>
+        <label for="interface-select">选择网卡：</label>
+        <select id="interface-select"><option value="" selected>请选择网卡</option></select>
+    </div>
+    <div>
+        <label>选择输出模式：</label>
+        <label>
+            <input type="radio" name="output_mode" value="flow" checked> Flow
+        </label>
+        <label>
+            <input type="radio" name="output_mode" value="sequence"> Sequence
+        </label>
+    </div>
+    <div>
+        <label for="file-input">选择文件：</label>
+        <input type="file" id="file-input" accept=".pcap,.pcapng">
+    </div>
+    <button onclick="startSniffer()">Start Sniffer</button>
+    <button onclick="stopSniffer()">Stop Sniffer</button>
+    <h2>Captured Flows</h2>
+    <table id="info-table" border="1">
+        <thead>
+            <tr>
+                <th>Source IP</th>
+                <th>Destination IP</th>
+                <th>Source Port</th>
+                <th>Destination Port</th>
+                <th>Timestamp</th>
+                <th>Is DoH</th>
+                <th>Is Benign</th>
+            </tr>
+        </thead>
+        <tbody id="info-body">
+            <!-- Flow info will be dynamically inserted here -->
+        </tbody>
+    </table>
+</body>
+</html>
