@@ -1,0 +1,13 @@
+# IDE 配置文件（如 PyCharm、IntelliJ）
+.idea/
+
+# Python 编译缓存文件
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 其他可能需要忽略的文件（可选）
+*.log
+*.swp
+*.env
+venv/
