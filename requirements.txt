@@ -1,0 +1,16 @@
+# This file may be used to create an environment using:
+# $ conda create --name <env> --file <this file>
+# platform: win-64
+# here are only the key packages
+
+channels=3.0.4=pypi_0
+django=3.2.5=pyhd3eb1b0_0
+numpy=2.0.2=pypi_0
+pandas=1.3.5=pypi_0
+python=3.9.21=h8205438_1
+scapy=2.4.3=pypi_0
+scipy=1.13.1=pypi_0
+torch=2.6.0+cu118=pypi_0
+torchaudio=2.6.0+cu118=pypi_0
+torchvision=0.21.0+cu118=pypi_0
+torchviz=0.0.3=pypi_0
